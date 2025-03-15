@@ -7,11 +7,13 @@ contract OwnerNFTTest is Test {
     OwnerNFT private nftContract;
     address private owner;
     address private unauthorizedUser;
+    address private buyer;
     string private constant TOKEN_URI = "ipfs://example-token-uri";
 
     function setUp() public {
         owner = vm.addr(1);
         unauthorizedUser = vm.addr(2);
+        buyer = vm.addr(3);
         vm.prank(owner);
         nftContract = new OwnerNFT();
     }
@@ -45,5 +47,32 @@ contract OwnerNFTTest is Test {
             abi.encodeWithSelector(OwnerNFT.TokenDoesNotExist.selector, 9999)
         );
         nftContract.tokenURI(9999);
+    }
+
+    function testListNFT() public {
+        vm.startPrank(owner);
+        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.listNFT(1, 1 ether);
+        vm.stopPrank();
+        (uint256 price, address seller, bool isListed) = nftContract.listings(
+            1
+        );
+        assertEq(price, 1 ether);
+        assertEq(seller, owner);
+        assertEq(isListed, true);
+    }
+
+    function testInauthorizedUserCannotListNFT() public {
+        vm.startPrank(owner);
+        nftContract.mintNFT(owner, TOKEN_URI);
+        vm.stopPrank();
+        vm.prank(unauthorizedUser);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnerNFT.NotOwner.selector,
+                "Only the owner can list the NFT for sale"
+            )
+        );
+        nftContract.listNFT(1, 1 ether);
     }
 }
