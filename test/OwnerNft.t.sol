@@ -75,4 +75,19 @@ contract OwnerNFTTest is Test {
         );
         nftContract.listNFT(1, 1 ether);
     }
+
+    function testBuyNFTSuccessfully() public {
+        vm.startPrank(owner);
+        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.listNFT(1, 1 ether);
+        vm.stopPrank();
+
+        vm.deal(buyer, 2 ether);
+
+        vm.startPrank(buyer);
+        nftContract.buyNFT{value: 1 ether}(1);
+        vm.stopPrank();
+
+        assertEq(nftContract.ownerOf(1), buyer);
+    }
 }
