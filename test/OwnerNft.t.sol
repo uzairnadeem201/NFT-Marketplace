@@ -90,4 +90,44 @@ contract OwnerNFTTest is Test {
 
         assertEq(nftContract.ownerOf(1), buyer);
     }
+
+    function testListNFTWithZeroPriceShouldFail() public {
+        vm.startPrank(owner);
+        nftContract.mintNFT(owner, TOKEN_URI);
+        vm.expectRevert("Price must be greater than zero");
+        nftContract.listNFT(1, 0);
+        vm.stopPrank();
+    }
+
+    function testBuyUnlistedNFTShouldFail() public {
+        vm.deal(buyer, 2 ether);
+        vm.startPrank(buyer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnerNFT.NotListed.selector,
+                "NFT is not listed for sale"
+            )
+        );
+        nftContract.buyNFT{value: 1 ether}(1);
+        vm.stopPrank();
+    }
+
+    function testBuyNFTWithInsufficientFundsShouldFail() public {
+        vm.startPrank(owner);
+        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.listNFT(1, 1 ether);
+        vm.stopPrank();
+
+        vm.deal(buyer, 0.5 ether);
+
+        vm.startPrank(buyer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnerNFT.InsufficientFunds.selector,
+                "Insufficient Funds"
+            )
+        );
+        nftContract.buyNFT{value: 0.5 ether}(1);
+        vm.stopPrank();
+    }
 }

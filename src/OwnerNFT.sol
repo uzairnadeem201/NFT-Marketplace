@@ -14,6 +14,7 @@ contract OwnerNFT is ERC721, Ownable {
     error TokenDoesNotExist(uint256 tokenId);
     error NotListed(string message);
     error InsufficientFunds(string message);
+
     struct Listing {
         uint256 price;
         address seller;
@@ -54,21 +55,30 @@ contract OwnerNFT is ERC721, Ownable {
             revert NotOwner("Only the owner can list the NFT for sale");
         }
         require(price > 0, "Price must be greater than zero");
+
+        approve(address(this), tokenId);
+
         listings[tokenId] = Listing(price, msg.sender, true);
     }
 
     function buyNFT(uint256 tokenId) public payable {
-        Listing memory listing = listings[tokenId];
+        Listing storage listing = listings[tokenId];
+
         if (!listing.isListed) {
             revert NotListed("NFT is not listed for sale");
         }
         if (msg.value < listing.price) {
             revert InsufficientFunds("Insufficient Funds");
         }
+
         address seller = listing.seller;
-        safeTransferFrom(seller, msg.sender, tokenId);
+        address approved = getApproved(tokenId);
+
+        listing.isListed = false;
+
+        _transfer(seller, msg.sender, tokenId);
         payable(seller).transfer(msg.value);
-        listings[tokenId].isListed = false;
+
         emit NFTBought(tokenId, msg.sender, msg.value);
     }
 }
