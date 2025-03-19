@@ -19,6 +19,8 @@ contract OwnerNFT is ERC721, Ownable {
         uint256 price;
         address seller;
         bool isListed;
+        uint256 royaltyPercentage;
+        address originalCreator;
     }
 
     mapping(uint256 => string) private _tokenURIs;
@@ -40,14 +42,16 @@ contract OwnerNFT is ERC721, Ownable {
         return _tokenURIs[tokenId];
     }
 
-    function mintNFT(address to, string memory uri) public {
+    function mintNFT(address to, string memory uri, uint256 royalty) public {
         if (msg.sender != owner()) {
             revert NotOwner("Unautorized User is requesting to Mint");
         }
+        require(royalty <= 1000, "Royalty too high!");
         _tokenIdCounter++;
         uint256 tokenId = _tokenIdCounter;
         _mint(to, tokenId);
         _setTokenURI(tokenId, uri);
+        listings[tokenId] = Listing(0, to, false, royalty, to);
     }
 
     function listNFT(uint256 tokenId, uint256 price) public {
@@ -58,7 +62,13 @@ contract OwnerNFT is ERC721, Ownable {
 
         approve(address(this), tokenId);
 
-        listings[tokenId] = Listing(price, msg.sender, true);
+        listings[tokenId] = Listing(
+            price,
+            msg.sender,
+            true,
+            listings[tokenId].royaltyPercentage,
+            listings[tokenId].originalCreator
+        );
     }
 
     function buyNFT(uint256 tokenId) public payable {
@@ -71,13 +81,24 @@ contract OwnerNFT is ERC721, Ownable {
             revert InsufficientFunds("Insufficient Funds");
         }
 
+        require(msg.value == listing.price, "Incorrect payment amount");
+
         address seller = listing.seller;
-        address approved = getApproved(tokenId);
+        uint256 royaltyAmount = (listing.price * listing.royaltyPercentage) /
+            10000;
+
+        require(listing.price >= royaltyAmount, "Royalty calculation error");
+
+        uint256 sellerAmount = listing.price - royaltyAmount;
 
         listing.isListed = false;
 
         _transfer(seller, msg.sender, tokenId);
-        payable(seller).transfer(msg.value);
+
+        if (royaltyAmount > 0) {
+            payable(listing.originalCreator).transfer(royaltyAmount);
+        }
+        payable(seller).transfer(sellerAmount);
 
         emit NFTBought(tokenId, msg.sender, msg.value);
     }

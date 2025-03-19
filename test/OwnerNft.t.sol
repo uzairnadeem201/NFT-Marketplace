@@ -20,7 +20,7 @@ contract OwnerNFTTest is Test {
 
     function testOnlyOwnerCanMint() public {
         vm.prank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         assertEq(nftContract.ownerOf(1), owner);
     }
 
@@ -33,12 +33,12 @@ contract OwnerNFTTest is Test {
             )
         );
 
-        nftContract.mintNFT(unauthorizedUser, TOKEN_URI);
+        nftContract.mintNFT(unauthorizedUser, TOKEN_URI, 500);
     }
 
     function testSetTokenUriandRetrievingIt() public {
         vm.prank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         assertEq(nftContract.tokenURI(1), TOKEN_URI);
     }
 
@@ -51,20 +51,26 @@ contract OwnerNFTTest is Test {
 
     function testListNFT() public {
         vm.startPrank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         nftContract.listNFT(1, 1 ether);
         vm.stopPrank();
-        (uint256 price, address seller, bool isListed) = nftContract.listings(
-            1
-        );
+        (
+            uint256 price,
+            address seller,
+            bool isListed,
+            uint256 royaltyPercentage,
+            address originalCreator
+        ) = nftContract.listings(1);
         assertEq(price, 1 ether);
         assertEq(seller, owner);
         assertEq(isListed, true);
+        assertEq(originalCreator, owner);
+        assertEq(royaltyPercentage, 500);
     }
 
     function testInauthorizedUserCannotListNFT() public {
         vm.startPrank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         vm.stopPrank();
         vm.prank(unauthorizedUser);
         vm.expectRevert(
@@ -78,7 +84,7 @@ contract OwnerNFTTest is Test {
 
     function testBuyNFTSuccessfully() public {
         vm.startPrank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         nftContract.listNFT(1, 1 ether);
         vm.stopPrank();
 
@@ -93,7 +99,7 @@ contract OwnerNFTTest is Test {
 
     function testListNFTWithZeroPriceShouldFail() public {
         vm.startPrank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         vm.expectRevert("Price must be greater than zero");
         nftContract.listNFT(1, 0);
         vm.stopPrank();
@@ -114,7 +120,7 @@ contract OwnerNFTTest is Test {
 
     function testBuyNFTWithInsufficientFundsShouldFail() public {
         vm.startPrank(owner);
-        nftContract.mintNFT(owner, TOKEN_URI);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
         nftContract.listNFT(1, 1 ether);
         vm.stopPrank();
 
