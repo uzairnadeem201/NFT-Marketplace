@@ -136,4 +136,47 @@ contract OwnerNFTTest is Test {
         nftContract.buyNFT{value: 0.5 ether}(1);
         vm.stopPrank();
     }
+
+    function testRoyaltyCannotExceedAllowedLimit() public {
+        vm.startPrank(owner);
+        vm.expectRevert("Royalty too high!"); // Adjusted based on contract's limit
+        nftContract.mintNFT(owner, TOKEN_URI, 6000); // Assuming limit is < 60%
+        vm.stopPrank();
+    }
+
+    function testRoyaltyPaidToDifferentCreator() public {
+        address secondOwner = vm.addr(4);
+
+        vm.startPrank(owner);
+        nftContract.mintNFT(owner, TOKEN_URI, 500);
+        nftContract.listNFT(1, 1 ether);
+        vm.stopPrank();
+
+        vm.deal(buyer, 2 ether);
+
+        vm.startPrank(buyer);
+        nftContract.buyNFT{value: 1 ether}(1);
+        vm.stopPrank();
+
+        vm.startPrank(buyer);
+        nftContract.listNFT(1, 2 ether);
+        vm.stopPrank();
+
+        vm.deal(secondOwner, 2 ether);
+
+        uint256 creatorBalanceBefore = owner.balance;
+
+        vm.startPrank(secondOwner);
+        nftContract.buyNFT{value: 2 ether}(1);
+        vm.stopPrank();
+
+        uint256 royaltyAmount = (2 ether * 500) / 10000;
+        uint256 creatorBalanceAfter = owner.balance;
+
+        assertEq(
+            creatorBalanceAfter - creatorBalanceBefore,
+            royaltyAmount,
+            "Royalty amount mismatch!"
+        );
+    }
 }
